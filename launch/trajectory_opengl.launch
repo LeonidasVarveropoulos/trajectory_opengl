@@ -1,0 +1,11 @@
+<launch>
+  <node pkg="trajectory_opengl" type="trajectory_opengl.py" name="trajectory_opengl_left"  output="screen">
+    <param name="node_name" type="string" value="trajectory_opengl_left"/>
+    <rosparam command="load" file="$(find trajectory_opengl)/config/trajectory_left.yaml"/>
+  </node>
+
+  <node pkg="trajectory_opengl" type="trajectory_opengl.py" name="trajectory_opengl_right"  output="screen">
+    <param name="node_name" type="string" value="trajectory_opengl_right"/>
+    <rosparam command="load" file="$(find trajectory_opengl)/config/trajectory_right.yaml"/>
+  </node>
+</launch>

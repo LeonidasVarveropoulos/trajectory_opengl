@@ -1,0 +1,13 @@
+#  The width and height of the outputted window
+width: 1280
+height: 720
+
+model_scale: 0.1666
+draw_model: True
+
+vert_shader: "vert.glsl"
+frag_shader: "frag.glsl"
+
+trajectory_topic: "/trajectory"
+
+camera_topic: "/cam"

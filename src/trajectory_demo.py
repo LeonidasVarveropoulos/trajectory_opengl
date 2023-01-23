@@ -28,11 +28,11 @@ global model_scale
 model_scale = 1/6.0
 
 global VERTEX_SHADER
-with open("vert.glsl") as file:
+with open("vert_traj.glsl") as file:
     VERTEX_SHADER = file.read()
 
 global FRAGMENT_SHADER
-with open("frag.glsl") as file:
+with open("frag_traj.glsl") as file:
     FRAGMENT_SHADER = file.read()
 
 global shaderProgram

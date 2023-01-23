@@ -1,15 +1,27 @@
 #version 110
 
 attribute vec4 position;
-uniform mat4 mvp;
+attribute vec4 nextPosition;
+attribute float direction;
 
-varying vec3 vDepth;
+uniform mat4 mvp;
 
 void main() {
 
-gl_Position = mvp * position;
+    vec2 currentScreen = position.xy/position.w;
 
-vDepth = position.xyz;
+    vec2 nextScreen = nextPosition.xy/nextPosition.w;
 
+    //normal of line (B - A)
+    vec2 dir = normalize(nextScreen - currentScreen);
+    vec2 normal = vec2(-dir.y, dir.x);
 
+    normal *= (0.1);
+
+    //offset by the direction of this point in the pair (-1 or 1)
+    vec4 offset = vec4(0.1 * direction, 0.1 * direction, 0.0, 0.0);
+
+    float test = direction;
+    
+    gl_Position = mvp * (position + offset);
 }

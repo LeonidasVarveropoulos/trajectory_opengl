@@ -9,6 +9,8 @@ import time
 import sys
 import math
 
+from test_trajectory import test_trajectory
+
 #window dimensions
 width = 1280
 height = 720
@@ -37,20 +39,7 @@ global shaderProgram
 shaderProgram = None
 
 global vertices
-vertices = [-0.5, -0.7, -0.3,
-            -0.4, -0.6, -0.2,
-            -0.2, -0.5, -0.1,
-            -0.1, -0.4, 0.0,
-            0.2, -0.5, 0.0,
-            0.3, -0.5, 0.0,
-            0.4, -0.1, 0.0,
-            0.5, 0.1, 0.0,
-            0.6, 0.3, 0.0,
-            0.7, 0.5, 0.0,
-            0.7, 0.6, 0.1,
-            0.7, 0.7, 0.2,
-            0.7, 0.8, 0.3]
-vertices = np.array(vertices, dtype = np.float32)
+vertices = test_trajectory().get_vertices()
 
 def init():
     glClearColor(0.0, 0.0, 0.0, 1.0)
@@ -75,17 +64,25 @@ def init_shaders():
     glBindBuffer(GL_ARRAY_BUFFER, VBO)
     glBufferData(GL_ARRAY_BUFFER, vertices.nbytes, vertices, GL_STATIC_DRAW)
 
-    position = glGetAttribLocation(shaderProgram, "position")
-
     # Bind vertices
-    glVertexAttribPointer(position, 3, GL_FLOAT, GL_FALSE, 0, None)
+    position = glGetAttribLocation(shaderProgram, "position")
+    glVertexAttribPointer(position, 3, GL_FLOAT, GL_FALSE, 7*4, None)
     glEnableVertexAttribArray(position)
+
+    # Bind next vertices
+    next_position = glGetAttribLocation(shaderProgram, "nextPosition")
+    glVertexAttribPointer(next_position, 3, GL_FLOAT, GL_FALSE, 7*4, 3*4)
+    glEnableVertexAttribArray(next_position)
+
+    # Bind direction
+    direction = glGetAttribLocation(shaderProgram, "direction")
+    glVertexAttribPointer(direction, 1, GL_FLOAT, GL_FALSE, 7*4, 6*4)
+    glEnableVertexAttribArray(direction)
 
 
 def idle():
     global capture
     _,image = capture.read()
-
 
     out_image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
 
@@ -166,11 +163,9 @@ def draw_trajectory():
     glEnable(GL_BLEND)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
-    vert_num = int(vertices.size/3)
+    vert_num = int(vertices.size/7)
 
-    glLineWidth(4.0)
     glDrawArrays(GL_LINE_STRIP, 0, vert_num)
-    glLineWidth(1.0)
 
     glUseProgram(0)
 
@@ -203,7 +198,7 @@ def draw_model():
     glEnable(GL_BLEND)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
-    vert_num = int(vertices.size/3)
+    vert_num = int(vertices.size/7)
 
     glDrawArrays(GL_LINE_STRIP, 0, vert_num)
     glUseProgram(0)

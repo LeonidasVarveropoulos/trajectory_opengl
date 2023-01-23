@@ -77,27 +77,55 @@ class Trajectory:
         count = 0
         while (count < len(self.time)):
             # Double up vertices for thick lines
-            self.__add_vert(vert, count)
+            vert.append(self.lin_x[count])
+            vert.append(self.lin_y[count])
+            vert.append(self.lin_z[count])
+
+            vert.append(self.lin_x[count])
+            vert.append(self.lin_y[count])
+            vert.append(self.lin_z[count])
+
+            count+=1
+
+        print(vert)
+        return np.array(vert, dtype = np.float32)
+    
+    def get_next_vertices(self):
+        vert = []
+        
+        count = 0
+        while (count < len(self.time)):
+            # Double up vertices for thick lines
+            if (count == len(self.time) - 1):
+                vert.append(self.lin_x[count])
+                vert.append(self.lin_y[count])
+                vert.append(self.lin_z[count])
+
+                vert.append(self.lin_x[count])
+                vert.append(self.lin_y[count])
+                vert.append(self.lin_z[count])
+            else:
+                vert.append(self.lin_x[count + 1])
+                vert.append(self.lin_y[count + 1])
+                vert.append(self.lin_z[count + 1])
+
+                vert.append(self.lin_x[count + 1])
+                vert.append(self.lin_y[count + 1])
+                vert.append(self.lin_z[count + 1])
+
+            count+=1
+
+        return np.array(vert, dtype = np.float32)
+    
+    def get_vertices_direction(self):
+        vert = []
+        
+        count = 0
+        while (count < len(self.time)):
+            # Double up vertices for thick lines
             vert.append(1.0)
-            self.__add_vert(vert, count)
             vert.append(-1.0)
 
             count+=1
 
-        #print(vert)
         return np.array(vert, dtype = np.float32)
-
-    def __add_vert(self, vert, count):
-        vert.append(self.lin_x[count])
-        vert.append(self.lin_y[count])
-        vert.append(self.lin_z[count])
-
-        # Data for next point for the current point (calculating normal)
-        if (count == len(self.time) - 1):
-            vert.append(self.lin_x[count])
-            vert.append(self.lin_y[count])
-            vert.append(self.lin_z[count])
-        else:
-            vert.append(self.lin_x[count + 1])
-            vert.append(self.lin_y[count + 1])
-            vert.append(self.lin_z[count + 1])

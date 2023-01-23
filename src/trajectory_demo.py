@@ -41,6 +41,12 @@ shaderProgram = None
 global vertices
 vertices = test_trajectory().get_vertices()
 
+global next_vertices
+next_vertices = test_trajectory().get_next_vertices()
+
+global vertices_direction
+vertices_direction = test_trajectory().get_vertices_direction()
+
 def init():
     glClearColor(0.0, 0.0, 0.0, 1.0)
 
@@ -60,24 +66,32 @@ def init_shaders():
 
     shaderProgram = compileProgram(vertexshader, fragmentshader)
 
-    VBO = glGenBuffers(1)
-    glBindBuffer(GL_ARRAY_BUFFER, VBO)
-    glBufferData(GL_ARRAY_BUFFER, vertices.nbytes, vertices, GL_STATIC_DRAW)
-
     # Bind vertices
     position = glGetAttribLocation(shaderProgram, "position")
-    glVertexAttribPointer(position, 3, GL_FLOAT, GL_FALSE, 7*4, None)
-    glEnableVertexAttribArray(position)
-
-    # Bind next vertices
     next_position = glGetAttribLocation(shaderProgram, "nextPosition")
-    glVertexAttribPointer(next_position, 3, GL_FLOAT, GL_FALSE, 7*4, 3*4)
-    glEnableVertexAttribArray(next_position)
-
-    # Bind direction
     direction = glGetAttribLocation(shaderProgram, "direction")
-    glVertexAttribPointer(direction, 1, GL_FLOAT, GL_FALSE, 7*4, 6*4)
+
+    glEnableVertexAttribArray(position)
+    glEnableVertexAttribArray(next_position)
     glEnableVertexAttribArray(direction)
+
+    VBO = glGenBuffers(1)
+    glBindBuffer(GL_ARRAY_BUFFER, VBO)
+
+    glBufferData(GL_ARRAY_BUFFER, vertices.nbytes, vertices, GL_STATIC_DRAW)
+    glVertexAttribPointer(position, 3, GL_FLOAT, GL_FALSE, 0, None)
+
+    VBO = glGenBuffers(1)
+    glBindBuffer(GL_ARRAY_BUFFER, VBO)
+
+    glBufferData(GL_ARRAY_BUFFER, next_vertices.nbytes, next_vertices, GL_STATIC_DRAW)
+    glVertexAttribPointer(next_position, 3, GL_FLOAT, GL_FALSE, 3*4, None)
+
+    VBO = glGenBuffers(1)
+    glBindBuffer(GL_ARRAY_BUFFER, VBO)
+
+    glBufferData(GL_ARRAY_BUFFER, vertices_direction.nbytes, vertices_direction, GL_STATIC_DRAW)
+    glVertexAttribPointer(direction, 1, GL_FLOAT, GL_FALSE, 1*4, None)
 
 
 def idle():
@@ -163,9 +177,9 @@ def draw_trajectory():
     glEnable(GL_BLEND)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
-    vert_num = int(vertices.size/7)
+    vert_num = int(vertices.size/3)
 
-    glDrawArrays(GL_LINE_STRIP, 0, vert_num)
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, vert_num)
 
     glUseProgram(0)
 
@@ -198,9 +212,9 @@ def draw_model():
     glEnable(GL_BLEND)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
-    vert_num = int(vertices.size/7)
+    vert_num = int(vertices.size/3)
 
-    glDrawArrays(GL_LINE_STRIP, 0, vert_num)
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, vert_num)
     glUseProgram(0)
 
 

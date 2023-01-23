@@ -19,9 +19,7 @@ void main() {
     normal *= (0.1);
 
     //offset by the direction of this point in the pair (-1 or 1)
-    vec4 offset = vec4(0.1 * direction, 0.1 * direction, 0.0, 0.0);
-
-    float test = direction;
+    vec4 offset = vec4(normal * direction, 0.0, 0.0);
     
     gl_Position = mvp * (position + offset);
 }

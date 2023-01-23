@@ -87,7 +87,6 @@ class Trajectory:
 
             count+=1
 
-        print(vert)
         return np.array(vert, dtype = np.float32)
     
     def get_next_vertices(self):

@@ -20,7 +20,7 @@ void main() {
 
     depth = mvp * position;
 
-    normal *= ((0.01) * (1.0 + (depth.z * 3.0) + 0.3));
+    normal *= ((0.015) * (1.0 + (depth.z * 3.0) + 0.3));
 
     //offset by the direction of this point in the pair (-1 or 1)
     vec4 offset = vec4(normal * direction, 0.0, 0.0);

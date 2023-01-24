@@ -27,16 +27,29 @@ is_draw_model = True
 global model_scale
 model_scale = 1/6.0
 
-global VERTEX_SHADER
-with open("vert_traj.glsl") as file:
-    VERTEX_SHADER = file.read()
+# Shader for the trajectory
+global TRAJ_VERTEX_SHADER
+with open("traj_vert.glsl") as file:
+    TRAJ_VERTEX_SHADER = file.read()
 
-global FRAGMENT_SHADER
-with open("frag_traj.glsl") as file:
-    FRAGMENT_SHADER = file.read()
+global TRAJ_FRAGMENT_SHADER
+with open("traj_frag.glsl") as file:
+    TRAJ_FRAGMENT_SHADER = file.read()
 
-global shaderProgram
-shaderProgram = None
+global TRAJ_SHADER_PROGRAM
+TRAJ_SHADER_PROGRAM = None
+
+# Shader for the orientation model
+global ORI_VERTEX_SHADER
+with open("ori_vert.glsl") as file:
+    ORI_VERTEX_SHADER = file.read()
+
+global ORI_FRAGMENT_SHADER
+with open("ori_frag.glsl") as file:
+    ORI_FRAGMENT_SHADER = file.read()
+
+global ORI_SHADER_PROGRAM
+TRAJ_SHADER_PROGRAM = None
 
 global vertices
 vertices = test_trajectory().get_vertices()
@@ -50,26 +63,26 @@ vertices_direction = test_trajectory().get_vertices_direction()
 def init():
     glClearColor(0.0, 0.0, 0.0, 1.0)
 
-    init_shaders()
+    init_traj_shader()
+    #init_ori_shader()
     glutDisplayFunc(display)
     glutIdleFunc(idle)  
 
 
-def init_shaders():
-    global shaderProgram
-    global VERTEX_SHADER
-    global FRAGMENT_SHADER
-    global GEOMETRY_SHADER
+def init_traj_shader():
+    global TRAJ_SHADER_PROGRAM
+    global TRAJ_VERTEX_SHADER
+    global TRAJ_FRAGMENT_SHADER
 
-    vertexshader = compileShader(VERTEX_SHADER, GL_VERTEX_SHADER)
-    fragmentshader = compileShader(FRAGMENT_SHADER, GL_FRAGMENT_SHADER)  
+    vertexshader = compileShader(TRAJ_VERTEX_SHADER, GL_VERTEX_SHADER)
+    fragmentshader = compileShader(TRAJ_FRAGMENT_SHADER, GL_FRAGMENT_SHADER)  
 
-    shaderProgram = compileProgram(vertexshader, fragmentshader)
+    TRAJ_SHADER_PROGRAM = compileProgram(vertexshader, fragmentshader)
 
     # Bind vertices
-    position = glGetAttribLocation(shaderProgram, "position")
-    next_position = glGetAttribLocation(shaderProgram, "nextPosition")
-    direction = glGetAttribLocation(shaderProgram, "direction")
+    position = glGetAttribLocation(TRAJ_SHADER_PROGRAM, "position")
+    next_position = glGetAttribLocation(TRAJ_SHADER_PROGRAM, "nextPosition")
+    direction = glGetAttribLocation(TRAJ_SHADER_PROGRAM, "direction")
 
     glEnableVertexAttribArray(position)
     glEnableVertexAttribArray(next_position)
@@ -92,6 +105,50 @@ def init_shaders():
 
     glBufferData(GL_ARRAY_BUFFER, vertices_direction.nbytes, vertices_direction, GL_STATIC_DRAW)
     glVertexAttribPointer(direction, 1, GL_FLOAT, GL_FALSE, 1*4, None)
+
+
+def init_ori_shader():
+    global ORI_SHADER_PROGRAM
+    global ORI_VERTEX_SHADER
+    global ORI_FRAGMENT_SHADER
+
+    vertexshader = compileShader(ORI_VERTEX_SHADER, GL_VERTEX_SHADER)
+    fragmentshader = compileShader(ORI_FRAGMENT_SHADER, GL_FRAGMENT_SHADER)  
+
+    ORI_SHADER_PROGRAM = compileProgram(vertexshader, fragmentshader)
+
+    # Bind vertices
+    position = glGetAttribLocation(ORI_SHADER_PROGRAM, "position")
+
+    glEnableVertexAttribArray(position)
+
+    VBO = glGenBuffers(1)
+    glBindBuffer(GL_ARRAY_BUFFER, VBO)
+
+    triangle_width = 0.1
+    model = [0.0, 0.0, 0.0, # origin
+            triangle_width, 1.0, 0.0, # y:face 1
+            -triangle_width, 1.0, 0.0,
+            0.0, 0.0, 0.0, # origin
+            0.0, 1.0, triangle_width, # y:face 2
+            0.0, 1.0, -triangle_width,
+            0.0, 0.0, 0.0, # origin
+            1.0, triangle_width, 0.0, # x:face 1
+            1.0, -triangle_width, 0.0,
+            0.0, 0.0, 0.0, # origin
+            1.0, 0.0, triangle_width, # x:face 2
+            1.0, 0.0, -triangle_width,
+            0.0, 0.0, 0.0, # origin
+            triangle_width, 0.0, 1.0, # z:face 1
+            -triangle_width, 0.0, 1.0,
+            0.0, 0.0, 0.0, # origin
+            0.0, triangle_width, 1.0, # z:face 1
+            0.0, -triangle_width, 1.0]
+
+    model = np.array(model, dtype = np.float32)
+
+    glBufferData(GL_ARRAY_BUFFER, model.nbytes, model, GL_STATIC_DRAW)
+    glVertexAttribPointer(position, 3, GL_FLOAT, GL_FALSE, 0, None)
 
 
 def idle():
@@ -159,6 +216,8 @@ def display():
     # DRAW STUFF
     draw_trajectory()
 
+    #draw_orientations()
+
     if (is_draw_model):
         draw_model()
 
@@ -168,10 +227,10 @@ def display():
     glutSwapBuffers()
 
 def draw_trajectory():
-    glUseProgram(shaderProgram)
+    glUseProgram(TRAJ_SHADER_PROGRAM)
 
     mvp = glm.mat4(1.0)
-    uniform_mvp = glGetUniformLocation(shaderProgram, "mvp")
+    uniform_mvp = glGetUniformLocation(TRAJ_SHADER_PROGRAM, "mvp")
     glUniformMatrix4fv(uniform_mvp, 1, GL_FALSE, glm.value_ptr(mvp))
 
     glEnable(GL_BLEND)
@@ -179,7 +238,8 @@ def draw_trajectory():
 
     vert_num = int(vertices.size/3)
 
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, vert_num)
+    # GL_TRIANGLE_STRIP GL_TRIANGLES
+    glDrawArrays(GL_TRIANGLES, 0, vert_num)
 
     glUseProgram(0)
 
@@ -195,7 +255,7 @@ def draw_model():
     glColor4f(1.0, 1.0, 1.0, 1.0)
 
     # Draw model
-    glUseProgram(shaderProgram)
+    glUseProgram(TRAJ_SHADER_PROGRAM)
 
     # Scale and translate matrix
     mvp = glm.translate(glm.mat4(1.0), glm.vec3(-(1-model_scale), (1-model_scale), 0))
@@ -206,7 +266,7 @@ def draw_model():
     angle = (time.time() - start_time) * 30
     mvp = glm.rotate(mvp, glm.radians(angle), glm.vec3(0,1,0))
 
-    uniform_mvp = glGetUniformLocation(shaderProgram, "mvp")
+    uniform_mvp = glGetUniformLocation(TRAJ_SHADER_PROGRAM, "mvp")
     glUniformMatrix4fv(uniform_mvp, 1, GL_FALSE, glm.value_ptr(mvp))
 
     glEnable(GL_BLEND)
@@ -215,6 +275,22 @@ def draw_model():
     vert_num = int(vertices.size/3)
 
     glDrawArrays(GL_TRIANGLE_STRIP, 0, vert_num)
+    glUseProgram(0)
+
+def draw_orientations():
+    glUseProgram(ORI_SHADER_PROGRAM)
+
+    mvp = glm.mat4(1.0)
+    uniform_mvp = glGetUniformLocation(ORI_SHADER_PROGRAM, "mvp")
+    glUniformMatrix4fv(uniform_mvp, 1, GL_FALSE, glm.value_ptr(mvp))
+
+    glEnable(GL_BLEND)
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+
+    vert_num = int(vertices.size/3)
+
+    glDrawArrays(GL_TRIANGLES, 0, vert_num)
+
     glUseProgram(0)
 
 

@@ -1,10 +1,10 @@
-#version 110
+#version 330
 
-attribute vec4 position;
-attribute vec4 nextPosition;
-attribute float direction;
+layout(location = 0)in vec4 position;
+layout(location = 1)in vec4 nextPosition;
+layout(location = 2)in float direction;
 
-varying vec4 depth;
+out vec4 depth;
 
 uniform mat4 mvp;
 

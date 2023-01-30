@@ -71,6 +71,9 @@ class Trajectory:
         tck = interpolate.splrep(initial_time, self.ang_z)
         self.ang_z = interpolate.splev(self.time, tck)
 
+    def project_poses(self):
+        pass
+
     def get_vertices(self):
         vert = []
         
@@ -128,3 +131,13 @@ class Trajectory:
             count+=1
 
         return np.array(vert, dtype = np.float32)
+    
+    def get_orientation_poses(self, pose_number):
+        poses = []
+
+        step = int(len(self.ang_x)/pose_number)
+        count = 0
+        while (count < len(self.ang_x)):
+            poses.append([self.lin_x[count], self.lin_y[count], self.lin_z[count], self.ang_x[count], self.ang_y[count], self.ang_z[count]])
+            count += step
+        return poses

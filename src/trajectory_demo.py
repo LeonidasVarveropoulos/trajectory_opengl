@@ -87,6 +87,10 @@ next_vertices = test_trajectory().get_next_vertices()
 global vertices_direction
 vertices_direction = test_trajectory().get_vertices_direction()
 
+ori_count = 15
+global ori_poses
+ori_poses = test_trajectory().get_orientation_poses(ori_count)
+
 def init():
     glClearColor(0.0, 0.0, 0.0, 1.0)
 
@@ -352,7 +356,7 @@ def draw_trajectory():
     vert_num = int(vertices.size/3)
 
     # GL_TRIANGLE_STRIP GL_TRIANGLES
-    glDrawArrays(GL_TRIANGLES, 0, vert_num)
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, vert_num)
 
     for attrib in traj_attribs:
         glDisableVertexAttribArray(attrib)
@@ -416,30 +420,37 @@ def draw_model():
     glUseProgram(0)
 
 def draw_orientation_paths():
-    #TODO
-    draw_orientation()
+    # Static drawing of poses
+    for pose in ori_poses:
+        draw_orientation(pose)
 
-def draw_orientation():
+def draw_orientation(pose):
     glUseProgram(ORI_SHADER_PROGRAM)
     glBindVertexArray(ori_vao)
 
     for attrib in ori_attribs:
         glEnableVertexAttribArray(attrib)
 
-    point_scale = 0.2
+    point_scale = 0.1 * (1 + (1.5 * pose[2]))
 
     mvp = glm.mat4(1.0)
-    mvp = glm.translate(mvp, glm.vec3(0.0))
 
     scale = glm.vec3(point_scale)
     mvp = glm.scale(mvp, scale)
 
-    angle = (time.time() - start_time) * 30
-    mvp = glm.rotate(mvp, glm.radians(angle), glm.vec3(1,1,0))
+    mvp = glm.rotate(mvp, glm.radians(pose[3]), glm.vec3(1,0,0))
+    mvp = glm.rotate(mvp, glm.radians(pose[4]), glm.vec3(0,1,0))
+    mvp = glm.rotate(mvp, glm.radians(pose[5]), glm.vec3(0,0,1))
 
 
     uniform_mvp = glGetUniformLocation(ORI_SHADER_PROGRAM, "mvp")
     glUniformMatrix4fv(uniform_mvp, 1, GL_FALSE, glm.value_ptr(mvp))
+
+    translation = glm.mat4(1.0)
+    translation = glm.translate(translation, glm.vec3(pose[0], pose[1], 0.0))
+
+    uniform_trans = glGetUniformLocation(ORI_SHADER_PROGRAM, "translation")
+    glUniformMatrix4fv(uniform_trans, 1, GL_FALSE, glm.value_ptr(translation))
 
     ratio_location = glGetUniformLocation(ORI_SHADER_PROGRAM, "aspectRatio")
     glUniform1f(ratio_location, width/float(height))

@@ -6,6 +6,7 @@ layout(location = 1)in float color;
 out vec4 axisColor;
 
 uniform mat4 mvp;
+uniform mat4 translation;
 uniform float aspectRatio;
 
 void main() {
@@ -16,12 +17,14 @@ void main() {
     } else {
         temp = vec4(pos.x, pos.y * aspectRatio, pos.zw);
     }
-    gl_Position = temp;
+    gl_Position = translation * temp;
+
+    float depthFactor = (pos.z * (1.0/1.5));
 
     if (color == -1.0)
-        axisColor = vec4(1.0, 0.0, 0.0, 1.0);
+        axisColor = vec4(1.0, 0.0, 0.0, 0.5 + depthFactor);
     else if (color == 0.0)
-        axisColor = vec4(0.0, 1.0, 0.0, 1.0);
+        axisColor = vec4(0.0, 1.0, 0.0, 0.5 + depthFactor);
     else
-        axisColor = vec4(0.0, 0.0, 1.0, 1.0);
+        axisColor = vec4(0.0, 0.0, 1.0, 0.5 + depthFactor);
 }

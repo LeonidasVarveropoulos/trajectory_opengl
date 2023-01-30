@@ -15,7 +15,8 @@ def test_trajectory():
         z = radius*(-math.sin(3.0*t))
 
         lin = [x, y, z]
-        ang = [0,0,0]
+
+        ang = [50 * math.sin(t), 50 * math.cos(t), 50 * math.sin(t)]
         traj.add_point(count, lin, ang)
 
         count+=1

@@ -12,6 +12,9 @@ import glfw
 
 from test_trajectory import test_trajectory
 
+global trajectory
+trajectory = test_trajectory()
+
 #window dimensions
 width = 1280
 height = 720
@@ -22,11 +25,24 @@ capture = None
 global start_time
 start_time = time.time()
 
-global is_draw_model
-is_draw_model = True
+global time_scale
+time_scale = 1
 
 global model_scale
 model_scale = 1/6.0
+
+# Configuration variables that should be defined in the ros yaml file
+global config_draw_model
+config_draw_model = True
+
+global config_animate_trajectory
+config_animate_trajectory = True
+
+global config_animation_speed
+config_animation_speed = 1.0
+
+global config_draw_orientations
+config_draw_orientations = True
 
 # Shader for the videp
 global VIDEO_VERTEX_SHADER
@@ -74,22 +90,27 @@ global ori_attribs
 ori_attribs = []
 
 global video_texture
+
+# Vertex array objects
 global video_vao
 global traj_vao
 global ori_vao
 
 global vertices
-vertices = test_trajectory().get_vertices()
+vertices = trajectory.get_vertices()
 
 global next_vertices
-next_vertices = test_trajectory().get_next_vertices()
+next_vertices = trajectory.get_next_vertices()
 
 global vertices_direction
-vertices_direction = test_trajectory().get_vertices_direction()
+vertices_direction = trajectory.get_vertices_direction()
+
+global vertices_count
+vertices_count = trajectory.get_vert_count()
 
 ori_count = 15
 global ori_poses
-ori_poses = test_trajectory().get_orientation_poses(ori_count)
+ori_poses = trajectory.get_orientation_poses(ori_count)
 
 def init():
     glClearColor(0.0, 0.0, 0.0, 1.0)
@@ -159,10 +180,12 @@ def init_traj_shader():
     position = glGetAttribLocation(TRAJ_SHADER_PROGRAM, "position")
     next_position = glGetAttribLocation(TRAJ_SHADER_PROGRAM, "nextPosition")
     direction = glGetAttribLocation(TRAJ_SHADER_PROGRAM, "direction")
+    count = glGetAttribLocation(TRAJ_SHADER_PROGRAM, "vertCount")
 
     traj_attribs.append(position)
     traj_attribs.append(next_position)
     traj_attribs.append(direction)
+    traj_attribs.append(count)
 
     VBO = glGenBuffers(1)
     glBindBuffer(GL_ARRAY_BUFFER, VBO)
@@ -182,10 +205,15 @@ def init_traj_shader():
     glBufferData(GL_ARRAY_BUFFER, vertices_direction.nbytes, vertices_direction, GL_STATIC_DRAW)
     glVertexAttribPointer(direction, 1, GL_FLOAT, GL_FALSE, 1*4, None)
 
+    VBO = glGenBuffers(1)
+    glBindBuffer(GL_ARRAY_BUFFER, VBO)
+
+    glBufferData(GL_ARRAY_BUFFER, vertices_count.nbytes, vertices_count, GL_STATIC_DRAW)
+    glVertexAttribPointer(count, 1, GL_FLOAT, GL_FALSE, 1*4, None)
+
     # Unbind
     glBindBuffer(GL_ARRAY_BUFFER, 0)
     glBindVertexArray(0)
-
 
 def init_ori_shader():
     global ORI_SHADER_PROGRAM
@@ -271,50 +299,6 @@ def init_ori_shader():
     glBindBuffer(GL_ARRAY_BUFFER, 0)
     glBindVertexArray(0)
 
-
-def idle():
-    global capture
-    _,image = capture.read()
-
-    out_image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
-
-    glBindTexture(GL_TEXTURE_2D, video_texture);
-
-    # Create Texture
-    glTexImage2D(GL_TEXTURE_2D, 
-      0, 
-      GL_RGB, 
-      out_image.shape[1], out_image.shape[0],
-      0,
-      GL_RGB, 
-      GL_UNSIGNED_BYTE, 
-      out_image)
-    
-    glGenerateMipmap(GL_TEXTURE_2D)
-
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-def display():
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-   
-    # Sets up the apha channel
-    glEnable(GL_BLEND)
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-
-    # DRAW VIDEO
-    draw_video()
-
-    # DRAW STUFF
-    draw_trajectory()
-    draw_orientation_paths()
-    if (is_draw_model):
-        draw_model()
-
-    glDisable(GL_BLEND)
-
-    glFlush()
-    glutSwapBuffers()
-
 def draw_video():
     glUseProgram(VIDEO_SHADER_PROGRAM)
     glBindTexture(GL_TEXTURE_2D, video_texture);
@@ -341,14 +325,34 @@ def draw_video():
 
 def draw_trajectory():
     glUseProgram(TRAJ_SHADER_PROGRAM)
+
     glBindVertexArray(traj_vao)
 
     for attrib in traj_attribs:
         glEnableVertexAttribArray(attrib)
 
+    # MVP matrix
     mvp = glm.mat4(1.0)
     uniform_mvp = glGetUniformLocation(TRAJ_SHADER_PROGRAM, "mvp")
     glUniformMatrix4fv(uniform_mvp, 1, GL_FALSE, glm.value_ptr(mvp))
+
+    # Exact position
+    pose = trajectory.interpolate_single_pose(time_scale)
+    uniform_exact = glGetUniformLocation(TRAJ_SHADER_PROGRAM, "exactPos")
+    glUniform4f(uniform_exact, pose[0], pose[1], pose[2], 1.0)
+
+    # Exact Next position
+    time_next = time_scale + 0.1
+    if (time_next > 1):
+        time_next = 1
+    pose = trajectory.interpolate_single_pose(time_next)
+    uniform_next_exact = glGetUniformLocation(TRAJ_SHADER_PROGRAM, "exactNextPos")
+    glUniform4f(uniform_next_exact, pose[0], pose[1], pose[2], 1.0)
+
+    # Render count for animation
+    render_count = math.floor((vertices.size/6) * time_scale)
+    uniform_render = glGetUniformLocation(TRAJ_SHADER_PROGRAM, "renderCount")
+    glUniform1f(uniform_render, render_count)
 
     glEnable(GL_BLEND)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
@@ -406,6 +410,11 @@ def draw_model():
     uniform_mvp = glGetUniformLocation(TRAJ_SHADER_PROGRAM, "mvp")
     glUniformMatrix4fv(uniform_mvp, 1, GL_FALSE, glm.value_ptr(rotating_mvp))
 
+    # Render count for animation
+    render_count = int(vertices.size/6)
+    uniform_render = glGetUniformLocation(TRAJ_SHADER_PROGRAM, "renderCount")
+    glUniform1f(uniform_render, render_count)
+
     glEnable(GL_BLEND)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
@@ -419,9 +428,9 @@ def draw_model():
     glBindVertexArray(0)
     glUseProgram(0)
 
-def draw_orientation_paths():
+def draw_orientation_path(poses):
     # Static drawing of poses
-    for pose in ori_poses:
+    for pose in poses:
         draw_orientation(pose)
 
 def draw_orientation(pose):
@@ -467,6 +476,60 @@ def draw_orientation(pose):
 
     glBindVertexArray(0)
     glUseProgram(0)
+
+def idle():
+    global capture
+    _,image = capture.read()
+
+    out_image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
+
+    glBindTexture(GL_TEXTURE_2D, video_texture);
+
+    # Create Texture
+    glTexImage2D(GL_TEXTURE_2D, 
+      0, 
+      GL_RGB, 
+      out_image.shape[1], out_image.shape[0],
+      0,
+      GL_RGB, 
+      GL_UNSIGNED_BYTE, 
+      out_image)
+    
+    glGenerateMipmap(GL_TEXTURE_2D)
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+def display():
+    global time_scale
+    time_start, time_end = trajectory.get_path_timing()
+    time_diff = (time_end - time_start) * config_animation_speed
+    time_scale = (time.time() % time_diff)/time_diff;
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+   
+    # Sets up the apha channel
+    glEnable(GL_BLEND)
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+
+    # DRAW VIDEO
+    draw_video()
+
+    # DRAW STUFF
+    draw_trajectory()
+
+    if (config_draw_orientations):
+        if (config_animate_trajectory):
+            draw_orientation(trajectory.interpolate_single_pose(time_scale))
+        else:
+            draw_orientation_path(ori_poses)
+
+    if (config_draw_model):
+        draw_model()
+
+    glDisable(GL_BLEND)
+
+    glFlush()
+    glutSwapBuffers()
 
 def on_key(window, key, scancode, action, mods):
     if key == glfw.GLFW_KEY_ESCAPE and action == glfw.GLFW_PRESS:

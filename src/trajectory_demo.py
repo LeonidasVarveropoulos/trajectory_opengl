@@ -36,7 +36,7 @@ global config_draw_model
 config_draw_model = True
 
 global config_animate_trajectory
-config_animate_trajectory = True
+config_animate_trajectory = False
 
 global config_animation_speed
 config_animation_speed = 1.0
@@ -358,6 +358,10 @@ def draw_trajectory():
     uniform_render = glGetUniformLocation(TRAJ_SHADER_PROGRAM, "renderCount")
     glUniform1f(uniform_render, render_count)
 
+    glEnable(GL_DEPTH_TEST)
+    glDepthRange(1.0, 0.5)
+    glDepthFunc(GL_LESS)
+
     glEnable(GL_BLEND)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
@@ -368,6 +372,9 @@ def draw_trajectory():
 
     for attrib in traj_attribs:
         glDisableVertexAttribArray(attrib)
+    
+    glDisable(GL_DEPTH_TEST)
+    glDisable(GL_BLEND)
 
     glBindVertexArray(0)
     glUseProgram(0)
@@ -399,6 +406,8 @@ def draw_model():
 
     for attrib in video_attribs:
         glDisableVertexAttribArray(attrib)
+    
+    glDisable(GL_BLEND)
 
     glBindVertexArray(0)
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -428,6 +437,8 @@ def draw_model():
 
     for attrib in traj_attribs:
         glDisableVertexAttribArray(attrib)
+
+    glDisable(GL_BLEND)
 
     glBindVertexArray(0)
     glUseProgram(0)
@@ -477,6 +488,8 @@ def draw_orientation(pose):
 
     for attrib in ori_attribs:
         glDisableVertexAttribArray(attrib)
+
+    glDisable(GL_BLEND)
 
     glBindVertexArray(0)
     glUseProgram(0)
@@ -604,8 +617,6 @@ def main():
         glfw.poll_events()
 
     glfw.terminate()
-
-    init()
 
 if __name__ == "__main__":
     main()

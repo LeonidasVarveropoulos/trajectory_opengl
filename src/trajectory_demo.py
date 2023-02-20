@@ -350,7 +350,11 @@ def draw_trajectory():
     glUniform4f(uniform_next_exact, pose[0], pose[1], pose[2], 1.0)
 
     # Render count for animation
-    render_count = math.floor((vertices.size/6) * time_scale)
+    render_time = time_scale
+    if (not config_animate_trajectory):
+        render_time = 1
+
+    render_count = math.floor((vertices.size/6) * render_time)
     uniform_render = glGetUniformLocation(TRAJ_SHADER_PROGRAM, "renderCount")
     glUniform1f(uniform_render, render_count)
 
@@ -532,8 +536,26 @@ def display():
     glutSwapBuffers()
 
 def on_key(window, key, scancode, action, mods):
-    if key == glfw.GLFW_KEY_ESCAPE and action == glfw.GLFW_PRESS:
+    global config_draw_model
+    global config_animate_trajectory
+    global config_animation_speed
+    global config_draw_orientations
+
+    if key == glfw.KEY_ESCAPE and action == glfw.PRESS:
         glfw.set_window_should_close(window,1)
+    elif key == glfw.KEY_1 and action == glfw.PRESS:
+        config_draw_model = not config_draw_model
+    elif key == glfw.KEY_2 and action == glfw.PRESS:
+        config_draw_orientations = not config_draw_orientations
+    elif key == glfw.KEY_3 and action == glfw.PRESS:
+        config_animation_speed = 1.0
+        config_animate_trajectory = not config_animate_trajectory
+    elif key == glfw.KEY_UP and action == glfw.PRESS:
+        config_animation_speed -= 0.1
+        if (config_animation_speed <= 0):
+            config_animation_speed = 0.05
+    elif key == glfw.KEY_DOWN and action == glfw.PRESS:
+        config_animation_speed += 0.1
 
 def main():
     global width

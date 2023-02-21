@@ -15,12 +15,17 @@ from test_trajectory import test_trajectory
 global trajectory
 trajectory = test_trajectory()
 
-#window dimensions
+# Window dimensions
+global width
+global height
 width = 1280
 height = 720
 
 global capture
+global current_image
 capture = None
+
+global perspective
 
 global start_time
 start_time = time.time()
@@ -332,7 +337,10 @@ def draw_trajectory():
         glEnableVertexAttribArray(attrib)
 
     # MVP matrix
-    mvp = glm.mat4(1.0)
+    model = glm.mat4(1.0)
+    view = glm.mat4(1.0)
+
+    mvp = perspective * view * model
     uniform_mvp = glGetUniformLocation(TRAJ_SHADER_PROGRAM, "mvp")
     glUniformMatrix4fv(uniform_mvp, 1, GL_FALSE, glm.value_ptr(mvp))
 
@@ -359,7 +367,7 @@ def draw_trajectory():
     glUniform1f(uniform_render, render_count)
 
     glEnable(GL_DEPTH_TEST)
-    glDepthRange(1.0, 0.5)
+    glDepthRange(0.0, 1.0)
     glDepthFunc(GL_LESS)
 
     glEnable(GL_BLEND)
@@ -494,11 +502,28 @@ def draw_orientation(pose):
     glBindVertexArray(0)
     glUseProgram(0)
 
+def calculate_perspective():
+    global perspective
+    aspect = current_image.shape[0]/current_image.shape[1]
+    focal = 1744.8
+    fov = 2 * math.atan(current_image.shape[0]/(2 * focal))
+    f = 1.0/math.tan((fov/2.0))
+    zfar = 10.0
+    znear = 0.000001
+
+
+    perspective = glm.mat4x4(aspect * f, 0, 0, 0,
+                            0, f, 0, 0,
+                            0, 0, (zfar/(zfar-znear)), 1,
+                            0, 0, (-(zfar/(zfar-znear))) * znear, 0)
+
 def idle():
     global capture
+    global current_image
     _,image = capture.read()
 
     out_image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
+    current_image = out_image
 
     glBindTexture(GL_TEXTURE_2D, video_texture);
 
@@ -531,6 +556,9 @@ def display():
     # DRAW VIDEO
     draw_video()
 
+    # Calculate the new perspective matrix
+    calculate_perspective()
+
     # DRAW STUFF
     draw_trajectory()
 
@@ -546,7 +574,6 @@ def display():
     glDisable(GL_BLEND)
 
     glFlush()
-    glutSwapBuffers()
 
 def on_key(window, key, scancode, action, mods):
     global config_draw_model
@@ -605,6 +632,7 @@ def main():
     # Loop until the user closes the window
     while not glfw.window_should_close(window):
         width, height = glfw.get_window_size(window)
+        #glViewport(0, 0, width * 2, height * 2); # Dont multiply by 2 on linux
 
         # Update opengl
         idle()
@@ -620,3 +648,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# Test Pose: [0.01697442, 0.00520116, 0.10529092]

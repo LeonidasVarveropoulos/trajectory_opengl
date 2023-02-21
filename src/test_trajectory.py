@@ -4,22 +4,20 @@ import math
 def test_trajectory():
     traj = Trajectory()
 
-    points = 50
-    count = 0
-
-    while (count <= points):
-        t = count/10.0
-        radius = 1.0/4.0
-        x = radius*(math.sin(t)+2.0*math.sin(2.0*t))
-        y = radius*(math.cos(t)-2.0*math.cos(2.0*t))
-        z = radius*(-math.sin(3.0*t))
-
-        lin = [x, y, z]
-
-        ang = [50 * math.sin(t), 50 * math.cos(t), 50 * math.sin(t)]
-        traj.add_point(count, lin, ang)
-
-        count+=1
+    traj.add_point(0, [0.01697442/4, -0.00520116/4, 0.10529092], [0,0,0])
+    traj.add_point(1, [0.01697442/3, -0.00520116/3, 0.10529092 * 1.1], [0,0,0])
+    traj.add_point(2, [0.01697442/2, -0.00520116/2, 0.10529092 * 1.3], [0,0,0])
+    traj.add_point(3, [0.01697442, -0.00520116, 0.10529092], [0,0,0])
 
     traj.interpolate(200)
     return traj
+
+
+    # traj = Trajectory()
+
+    # traj.add_point(0, [0.01697442/4, -0.00520116/4, 0.10529092], [0,0,0])
+    # traj.add_point(1, [0.01697442/3, -0.00520116/3, 0.10529092 * 1.1], [0,0,0])
+    # traj.add_point(2, [0.01697442/2, -0.00520116/2, 0.10529092 * 1.3], [0,0,0])
+    # traj.add_point(3, [0.01697442, -0.00520116, 0.10529092], [0,0,0])
+
+    # traj.interpolate(200)

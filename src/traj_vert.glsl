@@ -31,7 +31,7 @@ void main() {
 
     depth = mvp * p1;
 
-    normal *= (0.002);
+    normal *= (0.001);
 
     //offset by the direction of this point in the pair (-1 or 1)
     vec4 offset = vec4(normal * direction, 0.0, 0.0);

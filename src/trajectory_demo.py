@@ -504,28 +504,47 @@ def draw_orientation(pose):
 
 def calculate_perspective():
     global perspective
-    aspect = current_image.shape[0]/current_image.shape[1]
-    focal = 1744.8
-    # diagonal_fov = 2 * math.atan((math.sqrt(math.pow(current_image.shape[0], 2) + math.pow(current_image.shape[1], 2)))/(2 * focal))
-    horizontal_fov = 2 * math.atan(current_image.shape[1]/(2 * focal))
-    vertical_fov = 2 * math.atan(current_image.shape[0]/(2 * focal))
-    # print(math.degrees(diagonal_fov), math.degrees(horizontal_fov), math.degrees(vertical_fov))
-    f = 1.0/math.tan((horizontal_fov/2.0))
-    zfar = 0.5
-    znear = 0.01
+    # aspect = current_image.shape[0]/current_image.shape[1]#1080/1920
+    # focal = 1744.8
+    # # diagonal_fov = 2 * math.atan((math.sqrt(math.pow(current_image.shape[0], 2) + math.pow(current_image.shape[1], 2)))/(2 * focal))
+    # horizontal_fov = 2 * math.atan(current_image.shape[1]/(2 * focal))
+    # vertical_fov = 2 * math.atan(current_image.shape[0]/(2 * focal))
+    # print(current_image.shape)
+    # f = 1.0/math.tan((horizontal_fov/2.0))
+    # zfar = 0.5
+    # znear = 0.01
 
-    r = znear * math.atan(horizontal_fov/2.0)
-    t = znear * math.atan(vertical_fov/2.0)
+    # r = znear * math.atan(horizontal_fov/2.0)
+    # t = znear * math.atan(vertical_fov/2.0)
 
     # perspective = glm.mat4x4(znear/r, 0, 0, 0,
     #                         0, znear/t, 0, 0,
     #                         0, 0, -(zfar+znear)/(zfar-znear), -1,
     #                         0, 0, (-2.0 * zfar * znear)/(zfar-znear), 0)
 
-    perspective = glm.mat4x4(aspect * f, 0, 0, 0,
-                            0, f, 0, 0,
-                            0, 0, (zfar/(zfar-znear)), 1,
-                            0, 0, (-(zfar/(zfar-znear))) * znear, 0)
+    # perspective = glm.mat4x4(aspect * f, 0, 0, 0,
+    #                         0, f, 0, 0,
+    #                         0, 0, (zfar/(zfar-znear)), 1,
+    #                         0, 0, (-(zfar/(zfar-znear))) * znear, 0)
+
+    # perspective = glm.mat4x4(aspect * f, 0, 0, 0,
+    #                         0, f, 0, 0,
+    #                         0, 0, -(zfar+znear)/(zfar-znear), -1,
+    #                         0, 0, (-2.0 * zfar * znear)/(zfar-znear), 0)
+
+    fx = 1745.417743800858
+    fy = 1744.804342507085
+    x0 = 1029.543761373819
+    y0 = 653.2514270158324
+    far = 0.5
+    near = 0.001
+    cols = 1920#current_image.shape[1]
+    rows = 1080#current_image.shape[0]
+
+    perspective = glm.mat4x4((-2.0*fx/cols), 0, 0, 0,
+                            0, 2.0*fy/rows, 0, 0,
+                            (cols-2*x0)/cols, -(rows-2*y0)/rows, (-far-near)/(far-near), -1,
+                            0, 0, (-2.0 * far * near)/(far-near), 0)
 
 def idle():
     global capture

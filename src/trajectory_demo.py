@@ -473,8 +473,6 @@ def draw_orientation(pose):
 
     out_mat/=out_mat[3]
 
-    print(out_mat)
-
     point_scale = 0.1 * (1 + (1.0 * out_mat[2]))
 
     mvp = glm.mat4(1.0)
@@ -566,8 +564,6 @@ def quaternian_rotation_matrix(w, x, y, z):
                            0, 0, 0, 1)
 
     rot_matrix = glm.transpose(rot_matrix)
-
-
                             
     return rot_matrix
 

@@ -16,10 +16,10 @@ class Trajectory:
         self.lin_y.append(lin[1])
         self.lin_z.append(lin[2])
 
-        self.ang_x.append(ang[0])
-        self.ang_y.append(ang[1])
-        self.ang_z.append(ang[2])
-        self.ang_w.append(ang[3])
+        self.ang_w.append(ang[0])
+        self.ang_x.append(ang[1])
+        self.ang_y.append(ang[2])
+        self.ang_z.append(ang[3])
 
     def clear(self):
         # Time
@@ -31,10 +31,10 @@ class Trajectory:
         self.lin_z = []
 
         # Angular
+        self.ang_w = []
         self.ang_x = []
         self.ang_y = []
         self.ang_z = []
-        self.ang_w = []
 
     def interpolate(self, num_points):
         min_time = self.time[0]
@@ -61,6 +61,10 @@ class Trajectory:
         self.lin_z_tck = interpolate.splrep(initial_time, self.lin_z)
         self.lin_z = interpolate.splev(self.time, self.lin_z_tck)
 
+        # Ang w interpolation
+        self.ang_w_tck = interpolate.splrep(initial_time, self.ang_w)
+        self.ang_w = interpolate.splev(self.time, self.ang_w_tck)
+
         # Ang x interpolation
         self.ang_x_tck = interpolate.splrep(initial_time, self.ang_x)
         self.ang_x = interpolate.splev(self.time, self.ang_x_tck)
@@ -73,10 +77,6 @@ class Trajectory:
         self.ang_z_tck = interpolate.splrep(initial_time, self.ang_z)
         self.ang_z = interpolate.splev(self.time, self.ang_z_tck)
 
-        # Ang w interpolation
-        self.ang_w_tck = interpolate.splrep(initial_time, self.ang_w)
-        self.ang_w = interpolate.splev(self.time, self.ang_w_tck)
-
     def interpolate_single_pose(self, time_scale):
         time = (self.time[len(self.time) - 1] - self.time[0]) * time_scale
 
@@ -84,12 +84,12 @@ class Trajectory:
         lin_y = interpolate.splev(time, self.lin_y_tck)
         lin_z = interpolate.splev(time, self.lin_z_tck)
 
+        ang_w = interpolate.splev(time, self.ang_w_tck)
         ang_x = interpolate.splev(time, self.ang_x_tck)
         ang_y = interpolate.splev(time, self.ang_y_tck)
         ang_z = interpolate.splev(time, self.ang_z_tck)
-        ang_w = interpolate.splev(time, self.ang_z_tck)
 
-        return [lin_x.item(0), lin_y.item(0), lin_z.item(0), ang_x.item(0), ang_y.item(0), ang_z.item(0), ang_w.item(0)]
+        return [lin_x.item(0), lin_y.item(0), lin_z.item(0), ang_w.item(0), ang_x.item(0), ang_y.item(0), ang_z.item(0)]
 
     def get_vertices(self):
         vert = []
@@ -168,7 +168,7 @@ class Trajectory:
         step = int(len(self.ang_x)/pose_number)
         count = 0
         while (count < len(self.ang_x)):
-            poses.append([self.lin_x[count], self.lin_y[count], self.lin_z[count], self.ang_x[count], self.ang_y[count], self.ang_z[count], self.ang_w[count]])
+            poses.append([self.lin_x[count], self.lin_y[count], self.lin_z[count], self.ang_w[count], self.ang_x[count], self.ang_y[count], self.ang_z[count]])
             count += step
         return poses
     

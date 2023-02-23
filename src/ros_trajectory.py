@@ -1,3 +1,5 @@
+#!/usr/bin/env python3.8
+import rospy
 import cv2
 from OpenGL.GLUT import *
 from OpenGL.GLU import *
@@ -8,25 +10,24 @@ import glm
 import time
 import sys
 import math
+from sensor_msgs.msg import Image
+from sensor_msgs.msg import CameraInfo
+from cv_bridge import CvBridge, CvBridgeError
 import glfw
-
 from test_trajectory import test_trajectory
+from test_trajectory import test_load_trajectory
 
 global trajectory
-trajectory = test_trajectory()
+trajectory = test_load_trajectory()
 
-# Window dimensions
 global width
 global height
-width = 1280
-height = 720
+#window dimensions
+width = 1920
+height = 1080
 
-global capture
-global current_image
-capture = None
-
+# The perspective matrix
 global perspective
-global perspective_np
 
 global start_time
 start_time = time.time()
@@ -118,9 +119,83 @@ ori_count = 15
 global ori_poses
 ori_poses = trajectory.get_orientation_poses(ori_count)
 
+class TrajectoryPlotter:
+    def __init__(self):
+        rospy.Subscriber("/HERO_dVRK/left/image_raw",Image,self.CameraCallBack)
+        rospy.Subscriber("/HERO_dVRK/left/camera_info",CameraInfo,self.CameraInfoCallBack)
+        self.CamImage = None
+        self.CamIntrinsic = None
+        self.CamDistort = None
+        self.texture_background = None
+        self.bridge = CvBridge()
+
+    # Get camera image into Calibrator Object
+    def CameraCallBack(self,msg):
+        try:
+            self.CamImage = self.bridge.imgmsg_to_cv2(msg, "bgr8")
+        except CvBridgeError as e:
+            print(e)
+
+    # Get camera information
+    def CameraInfoCallBack(self,msg):
+        self.CamIntrinsic = np.reshape(np.array(msg.K,dtype=np.float32),(3,3))
+        self.CamDistort = np.array(msg.D,dtype=np.float32)
+    
+    def idle(self):
+        out_image = cv2.cvtColor(self.CamImage.copy(),cv2.COLOR_BGR2RGB)
+
+        glBindTexture(GL_TEXTURE_2D, video_texture);
+
+        # Create Texture
+        glTexImage2D(GL_TEXTURE_2D, 
+        0, 
+        GL_RGB, 
+        out_image.shape[1], out_image.shape[0],
+        0,
+        GL_RGB, 
+        GL_UNSIGNED_BYTE, 
+        out_image)
+    
+        glGenerateMipmap(GL_TEXTURE_2D)
+
+        glBindTexture(GL_TEXTURE_2D, 0);
+
+    def display(self):
+        global time_scale
+        time_start, time_end = trajectory.get_path_timing()
+        time_diff = (time_end - time_start) * config_animation_speed
+        time_scale = (time.time() % time_diff)/time_diff
+
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+       
+        # Sets up the apha channel
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+
+        # DRAW VIDEO
+        draw_video()
+
+        calculate_perspective(self.CamImage)
+
+        # DRAW STUFF
+        draw_trajectory()
+
+        if (config_draw_orientations):
+            if (config_animate_trajectory):
+                draw_orientation(trajectory.interpolate_single_pose(time_scale))
+            else:
+                draw_orientation_path(ori_poses)
+
+        if (config_draw_model):
+            draw_model()
+
+        glDisable(GL_BLEND)
+
+        glFlush()
+        #glutSwapBuffers()
+
 def init():
     glClearColor(0.0, 0.0, 0.0, 1.0)
-
     init_video_shader()
     init_traj_shader()
     init_ori_shader()
@@ -340,8 +415,9 @@ def draw_trajectory():
     # MVP matrix
     model = glm.mat4(1.0)
     view = glm.mat4(1.0)
+    #mvp = perspective * view * model
+    mvp = view * model
 
-    mvp = model * view * perspective
     uniform_mvp = glGetUniformLocation(TRAJ_SHADER_PROGRAM, "mvp")
     glUniformMatrix4fv(uniform_mvp, 1, GL_FALSE, glm.value_ptr(mvp))
 
@@ -389,18 +465,14 @@ def draw_trajectory():
     glUseProgram(0)
 
 def draw_model():
-    # MVP matrix
-    view = glm.mat4(1.0)
-
-    trans_model = glm.translate(glm.mat4(1.0), glm.vec3(-(1-model_scale), (1-model_scale), 0))
+    # Scale and translate matrix
+    mvp = glm.translate(glm.mat4(1.0), glm.vec3(-(1-model_scale), (1-model_scale), 0))
 
     scale = glm.vec3(model_scale)
-    scale_mvp = glm.scale(trans_model, scale)
+    mvp = glm.scale(mvp, scale)
 
     angle = (time.time() - start_time) * 30
-    model = glm.rotate(scale_mvp, glm.radians(angle), glm.vec3(0,1,0))
-
-    mvp = model * view * perspective
+    rotating_mvp = glm.rotate(mvp, glm.radians(angle), glm.vec3(0,1,0))
 
     # Draw background (with no texture so black)
     glUseProgram(VIDEO_SHADER_PROGRAM)
@@ -410,7 +482,7 @@ def draw_model():
         glEnableVertexAttribArray(attrib)
 
     uniform_mvp = glGetUniformLocation(VIDEO_SHADER_PROGRAM, "mvp")
-    glUniformMatrix4fv(uniform_mvp, 1, GL_FALSE, glm.value_ptr(scale_mvp))
+    glUniformMatrix4fv(uniform_mvp, 1, GL_FALSE, glm.value_ptr(mvp))
 
     glEnable(GL_BLEND)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
@@ -434,7 +506,7 @@ def draw_model():
         glEnableVertexAttribArray(attrib)
 
     uniform_mvp = glGetUniformLocation(TRAJ_SHADER_PROGRAM, "mvp")
-    glUniformMatrix4fv(uniform_mvp, 1, GL_FALSE, glm.value_ptr(mvp))
+    glUniformMatrix4fv(uniform_mvp, 1, GL_FALSE, glm.value_ptr(rotating_mvp))
 
     # Render count for animation
     render_count = int(vertices.size/6)
@@ -468,29 +540,23 @@ def draw_orientation(pose):
     for attrib in ori_attribs:
         glEnableVertexAttribArray(attrib)
 
-    in_mat = np.matrix([[pose[0]], [pose[1]], [pose[2]], [1]])
-    out_mat = perspective_np * in_mat
-
-    out_mat/=out_mat[3]
-
-    print(out_mat)
-
-    point_scale = 0.1 * (1 + (1.0 * out_mat[2]))
+    point_scale = 0.1 * (1 + (1.5 * pose[2]))
 
     mvp = glm.mat4(1.0)
 
     scale = glm.vec3(point_scale)
     mvp = glm.scale(mvp, scale)
 
-    rot_matrix = quaternian_rotation_matrix(pose[3], pose[4], pose[5], pose[6])
-    
-    mvp = rot_matrix * mvp
+    mvp = glm.rotate(mvp, glm.radians(pose[3]), glm.vec3(1,0,0))
+    mvp = glm.rotate(mvp, glm.radians(pose[4]), glm.vec3(0,1,0))
+    mvp = glm.rotate(mvp, glm.radians(pose[5]), glm.vec3(0,0,1))
+
 
     uniform_mvp = glGetUniformLocation(ORI_SHADER_PROGRAM, "mvp")
     glUniformMatrix4fv(uniform_mvp, 1, GL_FALSE, glm.value_ptr(mvp))
 
     translation = glm.mat4(1.0)
-    translation = glm.translate(translation, glm.vec3(out_mat[0], out_mat[1], 0.0))
+    translation = glm.translate(translation, glm.vec3(pose[0], pose[1], 0.0))
 
     uniform_trans = glGetUniformLocation(ORI_SHADER_PROGRAM, "translation")
     glUniformMatrix4fv(uniform_trans, 1, GL_FALSE, glm.value_ptr(translation))
@@ -513,121 +579,21 @@ def draw_orientation(pose):
     glBindVertexArray(0)
     glUseProgram(0)
 
-# HELPER FUNCTIONS
-def calculate_perspective():
+def calculate_perspective(current_image):
     global perspective
-    global perspective_np
+    aspect = current_image.shape[1]/current_image.shape[0]
+    focal = 1744.8
+    diagonal = math.sqrt(math.pow(current_image.shape[0],2) + math.pow(current_image.shape[1], 2))
+    fov = 2 * math.atan(diagonal/(2*focal))
+    print(fov)
+    f = 1.0/math.tan((fov/2.0))
+    zfar = 10.0
+    znear = 0.000001
 
-    fx = 1745.417743800858
-    fy = 1744.804342507085
-    x0 = 1029.543761373819
-    y0 = 653.2514270158324
-    far = 0.15
-    near = 0.08
-    cols = 1920#current_image.shape[1]
-    rows = 1080#current_image.shape[0]
-
-    perspective = glm.mat4x4((-2.0*fx/cols), 0, (cols-2*x0)/cols, 0,
-                            0, 2.0*fy/rows, -(rows-2*y0)/rows, 0,
-                            0, 0, -(far+near)/(far-near), -(2*far*near)/(far-near),
-                            0, 0, -1, 0)
-    perspective = glm.transpose(perspective)
-
-    perspective_np = np.matrix([[(-2.0*fx/cols), 0, (cols-2*x0)/cols, 0],
-                            [0, 2.0*fy/rows, -(rows-2*y0)/rows, 0],
-                            [0, 0, -(far+near)/(far-near), -(2*far*near)/(far-near)],
-                            [0, 0, -1, 0]])
-
-def quaternian_rotation_matrix(w, x, y, z):
-    # Extract the values from Q
-    q0 = w
-    q1 = x
-    q2 = y
-    q3 = z
-     
-    # First row of the rotation matrix
-    r00 = 2 * (q0 * q0 + q1 * q1) - 1
-    r01 = 2 * (q1 * q2 - q0 * q3)
-    r02 = 2 * (q1 * q3 + q0 * q2)
-     
-    # Second row of the rotation matrix
-    r10 = 2 * (q1 * q2 + q0 * q3)
-    r11 = 2 * (q0 * q0 + q2 * q2) - 1
-    r12 = 2 * (q2 * q3 - q0 * q1)
-     
-    # Third row of the rotation matrix
-    r20 = 2 * (q1 * q3 - q0 * q2)
-    r21 = 2 * (q2 * q3 + q0 * q1)
-    r22 = 2 * (q0 * q0 + q3 * q3) - 1
-    
-    rot_matrix = glm.mat4x4(r00, r01, r02, 0,
-                           r10, r11, r12, 0,
-                           r20, r21, r22, 0,
-                           0, 0, 0, 1)
-
-    rot_matrix = glm.transpose(rot_matrix)
-
-
-                            
-    return rot_matrix
-
-def idle():
-    global capture
-    global current_image
-    _,image = capture.read()
-
-    out_image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
-    current_image = out_image
-
-    glBindTexture(GL_TEXTURE_2D, video_texture);
-
-    # Create Texture
-    glTexImage2D(GL_TEXTURE_2D, 
-      0, 
-      GL_RGB, 
-      out_image.shape[1], out_image.shape[0],
-      0,
-      GL_RGB, 
-      GL_UNSIGNED_BYTE, 
-      out_image)
-    
-    glGenerateMipmap(GL_TEXTURE_2D)
-
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-def display():
-    global time_scale
-    time_start, time_end = trajectory.get_path_timing()
-    time_diff = (time_end - time_start) * config_animation_speed
-    time_scale = (time.time() % time_diff)/time_diff;
-
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-   
-    # Sets up the apha channel
-    glEnable(GL_BLEND)
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-
-    # DRAW VIDEO
-    draw_video()
-
-    # Calculate the new perspective matrix
-    calculate_perspective()
-
-    # DRAW STUFF
-    draw_trajectory()
-
-    if (config_draw_orientations):
-        if (config_animate_trajectory):
-            draw_orientation(trajectory.interpolate_single_pose(time_scale))
-        else:
-            draw_orientation_path(ori_poses)
-
-    if (config_draw_model):
-        draw_model()
-
-    glDisable(GL_BLEND)
-
-    glFlush()
+    perspective = glm.mat4x4(aspect * f, 0, 0, 0,
+                            0, f, 0, 0,
+                            0, 0, (zfar/(zfar-znear)), 1,
+                            0, 0, (-(zfar/(zfar-znear))) * znear, 0)
 
 def on_key(window, key, scancode, action, mods):
     global config_draw_model
@@ -655,10 +621,8 @@ def main():
     global width
     global height
 
-    global capture
-    capture = cv2.VideoCapture(0)
-    capture.set(3,width)
-    capture.set(4,height)
+    rospy.init_node('opengl_node')
+    c = TrajectoryPlotter()
 
     if not glfw.init():
         return
@@ -684,13 +648,13 @@ def main():
     init()
 
     # Loop until the user closes the window
-    while not glfw.window_should_close(window):
+    while not rospy.is_shutdown() and not glfw.window_should_close(window):
         width, height = glfw.get_window_size(window)
-        #glViewport(0, 0, width * 2, height * 2); # Dont multiply by 2 on linux
+        glViewport(0, 0, width, height)
 
         # Update opengl
-        idle()
-        display()
+        c.idle()
+        c.display()
 
         # Swap front and back buffers
         glfw.swap_buffers(window)
@@ -700,8 +664,6 @@ def main():
 
     glfw.terminate()
 
+
 if __name__ == "__main__":
     main()
-
-# Test Pose: [0.01697442, 0.00520116, 0.10529092]
-# Test Pose: [0.02765973, -0.00427, 0.08977157]

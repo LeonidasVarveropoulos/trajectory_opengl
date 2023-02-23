@@ -5,23 +5,27 @@ import numpy as np
 def test_trajectory():
     traj = Trajectory()
 
-    with open('Camera_point.txt') as f:
-        array = []
-        count = 0
-        for line in f: # read rest of lines
-            array.append([float(x) for x in line.split()])
-            new_array = array[0]
-            new_array[0] = -new_array[0]
-            new_array[1] = -new_array[1]
-            new_array[2] = -new_array[2]
-            print(new_array)
-            print(output_npc(new_array))
-            traj.add_point(count, new_array[:3], [0,0,0])
+    with open('path_points.txt') as f:
+        with open('path_time.txt') as t:
             array = []
-            count+=1
-            print("__________")
-        traj.interpolate(200)
-        return traj
+            count = 0
+            for line in f: # read rest of lines
+                time_line = t.readline()
+                time = [float(x) for x in time_line.split()]
+
+                array.append([float(x) for x in line.split()])
+                new_array = array[0]
+                new_array[0] = -new_array[0]
+                new_array[1] = -new_array[1]
+                new_array[2] = -new_array[2]
+                #print(new_array[:3])
+                #print(output_npc(new_array))
+                traj.add_point(time[0], new_array[:3], [new_array[3], new_array[4], new_array[5], new_array[6]])
+                array = []
+                count+=1
+                #print("__________")
+            traj.interpolate(200)
+            return traj
     return None
 
 def output_npc(arr):
@@ -32,7 +36,7 @@ def output_npc(arr):
     x0 = 1029.543761373819
     y0 = 653.2514270158324
     far = 0.15
-    near = 0.08
+    near = 0.01
     cols = 1920#current_image.shape[1]
     rows = 1080#current_image.shape[0]
 

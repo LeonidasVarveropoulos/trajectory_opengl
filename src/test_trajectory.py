@@ -32,14 +32,17 @@ def output_npc(arr):
     fy = 1744.804342507085
     x0 = 1029.543761373819
     y0 = 653.2514270158324
-    far = 0.5
-    near = 0.001
+    far = 0.15
+    near = 0.08
     cols = 1920#current_image.shape[1]
     rows = 1080#current_image.shape[0]
 
+    focal = 1744.8
+    horizontal_fov = 2 * math.atan(cols/(2 * focal))
+
     perspective = np.matrix([[(-2.0*fx/cols), 0, (cols-2*x0)/cols, 0],
                             [0, 2.0*fy/rows, -(rows-2*y0)/rows, 0],
-                            [0, 0, 0, 0],
+                            [0, 0, -(far+near)/(far-near), -(2*far*near)/(far-near)],
                             [0, 0, -1, 0]])
     
     out = perspective * in_array

@@ -21,20 +21,28 @@ void main() {
         p2 = exactNextPos;
     }
 
-    vec2 currentScreen = p1.xy/p1.w;
+    vec4 old = p1;
 
-    vec2 nextScreen = p2.xy/p2.w;
+    p1 = mvp * p1;
+    p2 = mvp * p2;
+
+    p1/=p1.w;
+    p2/=p2.w;
+
+    depth = p1.z;
+
+    vec2 currentScreen = p1.xy;
+
+    vec2 nextScreen = p2.xy;
 
     //normal of line (B - A)
     vec2 dir = normalize(nextScreen - currentScreen);
     vec2 normal = vec2(-dir.y, dir.x);
 
-    normal *= (0.1);
+    normal *= 0.01 * ((depth + 1.1) * 2.0);
 
     //offset by the direction of this point in the pair (-1 or 1)
     vec4 offset = vec4(normal * direction, 0.0, 0.0);
     
-    gl_Position = mvp * (p1);
-
-    depth = gl_Position.z;
+    gl_Position = p1 + offset;
 }

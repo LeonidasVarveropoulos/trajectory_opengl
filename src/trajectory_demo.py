@@ -340,7 +340,7 @@ def draw_trajectory():
     model = glm.mat4(1.0)
     view = glm.mat4(1.0)
 
-    mvp = perspective * view * model
+    mvp = model * view * perspective
     uniform_mvp = glGetUniformLocation(TRAJ_SHADER_PROGRAM, "mvp")
     glUniformMatrix4fv(uniform_mvp, 1, GL_FALSE, glm.value_ptr(mvp))
 
@@ -367,7 +367,7 @@ def draw_trajectory():
     glUniform1f(uniform_render, render_count)
 
     glEnable(GL_DEPTH_TEST)
-    glDepthRange(0.0, 1.0)
+    glDepthRange(1.0, 0.0)
     glDepthFunc(GL_LESS)
 
     glEnable(GL_BLEND)
@@ -376,7 +376,7 @@ def draw_trajectory():
     vert_num = int(vertices.size/3)
 
     # GL_TRIANGLE_STRIP GL_TRIANGLES
-    glDrawArrays(GL_LINE_STRIP, 0, vert_num)
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, vert_num)
 
     for attrib in traj_attribs:
         glDisableVertexAttribArray(attrib)
@@ -388,14 +388,18 @@ def draw_trajectory():
     glUseProgram(0)
 
 def draw_model():
-    # Scale and translate matrix
-    mvp = glm.translate(glm.mat4(1.0), glm.vec3(-(1-model_scale), (1-model_scale), 0))
+    # MVP matrix
+    view = glm.mat4(1.0)
+
+    trans_model = glm.translate(glm.mat4(1.0), glm.vec3(-(1-model_scale), (1-model_scale), 0))
 
     scale = glm.vec3(model_scale)
-    mvp = glm.scale(mvp, scale)
+    scale_mvp = glm.scale(trans_model, scale)
 
     angle = (time.time() - start_time) * 30
-    rotating_mvp = glm.rotate(mvp, glm.radians(angle), glm.vec3(0,1,0))
+    model = glm.rotate(scale_mvp, glm.radians(angle), glm.vec3(0,1,0))
+
+    mvp = model * view * perspective
 
     # Draw background (with no texture so black)
     glUseProgram(VIDEO_SHADER_PROGRAM)
@@ -405,7 +409,7 @@ def draw_model():
         glEnableVertexAttribArray(attrib)
 
     uniform_mvp = glGetUniformLocation(VIDEO_SHADER_PROGRAM, "mvp")
-    glUniformMatrix4fv(uniform_mvp, 1, GL_FALSE, glm.value_ptr(mvp))
+    glUniformMatrix4fv(uniform_mvp, 1, GL_FALSE, glm.value_ptr(scale_mvp))
 
     glEnable(GL_BLEND)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
@@ -429,7 +433,7 @@ def draw_model():
         glEnableVertexAttribArray(attrib)
 
     uniform_mvp = glGetUniformLocation(TRAJ_SHADER_PROGRAM, "mvp")
-    glUniformMatrix4fv(uniform_mvp, 1, GL_FALSE, glm.value_ptr(rotating_mvp))
+    glUniformMatrix4fv(uniform_mvp, 1, GL_FALSE, glm.value_ptr(mvp))
 
     # Render count for animation
     render_count = int(vertices.size/6)

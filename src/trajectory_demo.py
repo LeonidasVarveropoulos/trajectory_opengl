@@ -376,7 +376,7 @@ def draw_trajectory():
     vert_num = int(vertices.size/3)
 
     # GL_TRIANGLE_STRIP GL_TRIANGLES
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, vert_num)
+    glDrawArrays(GL_LINE_STRIP, 0, vert_num)
 
     for attrib in traj_attribs:
         glDisableVertexAttribArray(attrib)
@@ -536,15 +536,16 @@ def calculate_perspective():
     fy = 1744.804342507085
     x0 = 1029.543761373819
     y0 = 653.2514270158324
-    far = 0.5
-    near = 0.001
+    far = 0.15
+    near = 0.08
     cols = 1920#current_image.shape[1]
     rows = 1080#current_image.shape[0]
 
-    perspective = glm.mat4x4((-2.0*fx/cols), 0, 0, 0,
-                            0, 2.0*fy/rows, 0, 0,
-                            (cols-2*x0)/cols, -(rows-2*y0)/rows, (-far-near)/(far-near), -1,
-                            0, 0, (-2.0 * far * near)/(far-near), 0)
+    perspective = glm.mat4x4((-2.0*fx/cols), 0, (cols-2*x0)/cols, 0,
+                            0, 2.0*fy/rows, -(rows-2*y0)/rows, 0,
+                            0, 0, -(far+near)/(far-near), -(2*far*near)/(far-near),
+                            0, 0, -1, 0)
+    perspective = glm.transpose(perspective)
 
 def idle():
     global capture

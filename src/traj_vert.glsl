@@ -5,7 +5,7 @@ layout(location = 1)in vec4 nextPosition;
 layout(location = 2)in float direction;
 layout(location = 3)in float vertCount;
 
-out vec4 depth;
+out float depth;
 
 uniform mat4 mvp;
 
@@ -29,12 +29,12 @@ void main() {
     vec2 dir = normalize(nextScreen - currentScreen);
     vec2 normal = vec2(-dir.y, dir.x);
 
-    depth = mvp * p1;
-
-    normal *= (0.001);
+    normal *= (0.1);
 
     //offset by the direction of this point in the pair (-1 or 1)
     vec4 offset = vec4(normal * direction, 0.0, 0.0);
     
-    gl_Position = mvp * (p1 + offset);
+    gl_Position = mvp * (p1);
+
+    depth = gl_Position.z;
 }
